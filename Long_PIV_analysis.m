@@ -1,132 +1,87 @@
+%{
+% Version 1.0
+% © Ricardo Fradique,Nicola Pellicciotta  2023 (rgf34@cam.ac.uk) 
+% 
+% Long_PIV_analysis.m is licensed under a Creative Commons 
+% Attribution-NonCommercial-NoDerivatives 4.0 International License.s
+% 
+% Original work
+%
+%}
 
-%% Standard PIV Settings
-s = cell(10,2); % To make it more readable, let's create a "settings table"
-%Parameter                       %Setting           %Options
-s{1,1}= 'Int. area 1';           s{1,2}=256;         % window size of first pass
-s{2,1}= 'Step size 1';           s{2,2}=64;         % step of first pass
-s{3,1}= 'Subpix. finder';        s{3,2}=1;          % 1 = 3point Gauss, 2 = 2D Gauss
-s{4,1}= 'Mask';                  s{4,2}=[];         % If needed, generate via: imagesc(image); [temp,Mask{1,1},Mask{1,2}]=roipoly;
-s{5,1}= 'ROI';                   s{5,2}=[];         % Region of interest: [x,y,width,height] in pixels, may be left empty
-s{6,1}= 'Nr. of passes';         s{6,2}=3;          % 1-4 nr. of passes
-s{7,1}= 'Int. area 2';           s{7,2}=128;         % second pass window size
-s{8,1}= 'Int. area 3';           s{8,2}=64;         % third pass window size
-s{9,1}= 'Int. area 4';           s{9,2}=32;         % fourth pass window size
-s{10,1}='Window deformation';    s{10,2}='*linear'; % '*spline' is more accurate, but slower
-
-%% Standard image preprocessing settings
-p = cell(8,1);
-%Parameter                       %Setting           %Options
-p{1,1}= 'ROI';                   p{1,2}=s{5,2};     % same as in PIV settings
-p{2,1}= 'CLAHE';                 p{2,2}=0;          % 1 = enable CLAHE (contrast enhancement), 0 = disable
-p{3,1}= 'CLAHE size';            p{3,2}=50;         % CLAHE window size
-p{4,1}= 'Highpass';              p{4,2}=0;          % 1 = enable highpass, 0 = disable
-p{5,1}= 'Highpass size';         p{5,2}=15;         % highpass size
-p{6,1}= 'Clipping';              p{6,2}=0;          % 1 = enable clipping, 0 = disable
-p{7,1}= 'Wiener';                p{7,2}=0;          % 1 = enable Wiener2 adaptive denaoise filter, 0 = disable
-p{8,1}= 'Wiener size';           p{8,2}=3;          % Wiener2 window size
-
-%%
-%long= {'3_FL','5_FL','6_FL'};%,'3_BF','5_BF','6_BF'};
-%long= {'0/FL','5B/FL'}%,'5B/FL'};
-long={'5A/FL','5B/FL','5C/FL','15A/FL','15B/FL','15C/FL'}
-long={'z7um'};
-
-for insert=long;
-
-%% load files
-insert=insert{1};
-%data_dir = strcat('/run/user/10704/gvfs/smb-share:server=sf3.bss.phy.private.cam.ac.uk,share=space/np451/ependymalJune/4.7.18/',insert);
-%data_dir='/home/np451/Desktop/ependymal/sync/3.7.18/'
-data_dir= strcat('/media/np451/Seagate Expansion Drive/DATA/11.11.18/',insert)
-a_folder=strcat('/media/np451/Seagate Expansion Drive/DATA/11.11.18/PIV/',insert);
-%a_folder=strcat('/home/np451/Desktop/ependymal/4.7.18/PIV/');
-mkdir(a_folder); 
-
-cd(data_dir) 
-suffix='.movie';
-%direc = dir('*FL*.movie');
-direc = dir('*BF*.movie');
-N_files= size(direc,1);
-
-%%
-
-for i=1:N_files
-    cd(data_dir)
-    exp_name = direc(i).name;
-    exp_name=exp_name(1:end-6);
-
-%    if exist(strcat(a_folder,'/',exp_name)) == 0
-        
-%        mkdir(strcat(a_folder,'/',exp_name));
-
-        mo=moviereader(direc(i).name);
-        frame_stack=mo.read();
-        frame_stack=(frame_stack)-movmin(frame_stack,40,3);
-        max_int= double(max(frame_stack(:)));
-%        frame_stack= uint8((double(frame_stack)/max_int)*255);
-        frame_stack= uint8(frame_stack);
-        frame_stack=imadjustn(frame_stack);
-        for kk=1:size(frame_stack,3); 
-            frame_stack(:,:,kk)= wiener2(frame_stack(:,:,kk),[5,5]);
-        end
-%        frame_stack= uint8(double(frame_stack)/2^(8));  %%%% converting images from 16 to 8 bit
-%        frame_stack= uint8((frame_stack));  %%%% for images at 8 bit
-
-%        cd(strcat(a_folder,'/',exp_name));
+%% -----This script is to run PIV analysis on data provided by Ashleigh ---%
+% Step 1: you run PIVlab on all the video files
+% Step 2: post analysis: average vectors over time and remove useless data
+% Step 3: gather results from all the files and plots
 
 
-        %%  PIV
-   %     for i=1:size(frame_stack,3); fs(:,:,i)=histeq(frame_stack(:,:,i)); end; 
-%        for i=1:size(frame_stack,3); fs(:,:,i)=histeq(frame_stack(:,:,i)); end; 
- 
-        [X,Y,U,V] = PIV_GetData(frame_stack,s,p);
+% data_dir is the path were the directories are stored
+global data_dir;
+data_dir= pwd;  %Using the current directory as source
 
-%[X,Y,U,V] = PIV_GetData(frame_stack,s,p);
-        [x,y,u,v] =  PIV_ChangeFormat(X,Y,U,V);
+%path with the folders for each experimental condition
+global diff_exps;
+%diff_exps = dir;
+selection_string = 'test*';
+diff_exps = dir(selection_string);
 
-%        save(strcat(exp_name,'PIV_result.mat'),'X','Y','U','V','x','y','u','v','p','s');
-        close('all');
-        
-        cd(a_folder);
-        figure(1);
-        title(strcat(exp_name,'frame 1'));
-        imagesc(frame_stack(:,:,1));
-        fig=figure(1);
-        saveas(fig,strcat(exp_name,'_frame.png'))
-        close(1);    
+% directory name with all the video files for a set experiment
+global reps;
+%long={...
+%   '/videos'}
 
 
+% long can be more than one directory
+%example    long={'dirname1','dirname2', etc...}
+% results are going to be stored here
+global out_folder;
+out_folder=fullfile(data_dir,strcat('Results_',replace(selection_string,'*','')));
+mkdir(out_folder);
 
-        figure(1);
-        title(strcat(exp_name,' PreProcessing'));
-        quiver(x,-y,nanmean(u,3),-nanmean(v,3),3);
-        fig=figure(1);
-        saveas(fig,strcat(exp_name,'_PrePro.png'))
-        close(1);    
+slow_flag = 1; %%Turn to 1 if particle movement is too slow, or low magnification movies
 
-        %% PostProcessing 
 
-        ulim= [-10,10];
-        vlim= [-10,10];
-
-        [U1,V1]= PIV_Validation(X,Y,U,V,ulim,vlim);
-        [x,y,u1,v1] =  PIV_ChangeFormat(X,Y,U1,V1);
-
-        save('PIV_post.mat','U1','V1','ulim','vlim','u1','v1');
- 
-        clear frame_stack; 
-        save(strcat(exp_name,'.mat'));
-
-        figure(1);
-        title(strcat(exp_name,' PostProcessing'));
-        quiver(x,-y,mean(u1,3),-mean(v1,3),3);
-        fig=figure(1);
-        saveas(fig,strcat(exp_name,'_PostPro.png'));
-        close(1); 
+% go through each experiment folder
+for diff_exp = 1:length(diff_exps)
+%for diff_exp = 3:length(diff_exps)
+    cd(data_dir);
+    cur_exp = fullfile(diff_exps(diff_exp).folder,diff_exps(diff_exp).name);
+    reps = dir(cur_exp);   %get all the replicate folders for each exp
     
-%    end
-end
-
+    %loop on each of the directory, that I call insert
+    for insert = 3:length(reps)
+        
+        exp_name = reps(insert).name;
+        disp(reps(insert).name);
+        fps=10; % set frame per second
+        px2mu=3.25; %%% pixel to micron
+        
+        %% Read each file
+        cd(reps(insert).folder);
+        data = bfopen(reps(insert).name);
+        Nfs = 50; %% Framestack = 50 frames
+        fs=zeros([size(data{1,1}{1,1}),Nfs]);
+        
+        %% In low magnification or very slow movement conditions, skip frames to measure over longer time and adjust the framerate
+        if(slow_flag == 1)
+            data_size = size(data{1,1},1);
+            counter = floor(data_size / Nfs);
+            fps = fps / counter;
+        else
+            counter = 1;
+        end
+        
+        %% Populate the framestack with the time adjusted frames (if slow flag is not set, equivalent of just loading from file)
+        for t=1:Nfs
+            fs(:,:,t)= data{1,1}{t*counter,1};
+        end;
+        clear data
+        
+        % Run analysis on the frame stack
+        piv_analysis(fs,Nfs,exp_name,out_folder);
+        %end
+        %end
+    end
 end
 
 
