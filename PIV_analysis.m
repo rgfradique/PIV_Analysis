@@ -2,7 +2,7 @@
 % Version 1.0
 % © Ricardo Fradique,Nicola Pellicciotta  2023 (rgf34@cam.ac.uk) 
 % 
-% Long_PIV_analysis.m is licensed under a Creative Commons 
+% piv_analysis.m is licensed under a Creative Commons 
 % Attribution-NonCommercial-NoDerivatives 4.0 International License.s
 % 
 % Original work
